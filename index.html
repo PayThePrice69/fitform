@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitForm — AI Workout Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --glass: rgba(255,255,255,0.10);
+    --glass-border: rgba(255,255,255,0.18);
+    --glass-shadow: rgba(0,0,0,0.25);
+    --accent: #2997ff;
+    --accent2: #30d158;
+    --accent3: #bf5af2;
+    --warn: #ff9f0a;
+    --text: rgba(255,255,255,0.95);
+    --muted: rgba(255,255,255,0.5);
+    --input: rgba(255,255,255,0.07);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Figtree',sans-serif;
+    background:#080810; color:var(--text);
+    min-height:100vh; overflow-x:hidden;
+  }
+
+  /* BG */
+  .bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;}
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:0.4;animation:drift 20s ease-in-out infinite alternate;}
+  .o1{width:600px;height:600px;background:radial-gradient(#2997ff,#003d99 60%,transparent);top:-180px;left:-140px;animation-duration:22s;}
+  .o2{width:500px;height:500px;background:radial-gradient(#30d158,#0f5c28 60%,transparent);bottom:-120px;right:-100px;animation-duration:17s;animation-delay:-6s;}
+  .o3{width:400px;height:400px;background:radial-gradient(#bf5af2,#5c1a80 60%,transparent);top:45%;left:50%;animation-duration:28s;animation-delay:-12s;}
+  .o4{width:300px;height:300px;background:radial-gradient(#ff9f0a,#7a3f00 60%,transparent);top:65%;left:8%;animation-duration:19s;animation-delay:-4s;}
+  @keyframes drift{0%{transform:translate(0,0) scale(1);}40%{transform:translate(50px,-35px) scale(1.06);}70%{transform:translate(-25px,45px) scale(0.97);}100%{transform:translate(35px,15px) scale(1.04);}}
+
+  .wrap{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:52px 20px 100px;}
+
+  /* HEADER */
+  .header{text-align:center;margin-bottom:48px;animation:fadeUp .7s ease both;}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,0.07);border:1px solid var(--glass-border);border-radius:100px;padding:7px 18px;backdrop-filter:blur(20px);margin-bottom:26px;}
+  .badge-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);}
+  h1{font-size:clamp(40px,8vw,68px);font-weight:800;line-height:1.03;letter-spacing:-.035em;background:linear-gradient(140deg,#fff 25%,rgba(255,255,255,0.45));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px;}
+  .sub{font-size:16px;color:var(--muted);line-height:1.6;max-width:440px;margin:0 auto;}
+
+  /* API KEY BANNER */
+  .key-banner{
+    background:rgba(255,159,10,0.08);
+    border:1px solid rgba(255,159,10,0.25);
+    border-radius:18px;
+    padding:20px 24px;
+    margin-bottom:24px;
+    backdrop-filter:blur(20px);
+    animation:fadeUp .7s ease both;
+    animation-delay:.05s;
+  }
+  .key-banner-top{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .key-icon{font-size:18px;}
+  .key-title{font-size:13px;font-weight:700;color:var(--warn);}
+  .key-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .key-row{display:flex;gap:10px;align-items:center;}
+  .key-input{
+    flex:1;background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,159,10,0.3);
+    border-radius:11px;color:var(--text);
+    font-family:'DM Mono',monospace;font-size:13px;
+    padding:11px 14px;outline:none;
+    transition:border-color .2s,box-shadow .2s;
+  }
+  .key-input:focus{border-color:var(--warn);box-shadow:0 0 0 3px rgba(255,159,10,.15);}
+  .key-input::placeholder{color:rgba(255,255,255,.2);}
+  .key-save{
+    padding:11px 20px;border-radius:11px;border:none;
+    background:rgba(255,159,10,0.2);border:1px solid rgba(255,159,10,0.4);
+    color:var(--warn);font-family:inherit;font-size:13px;font-weight:700;
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .key-save:hover{background:rgba(255,159,10,0.3);}
+  .key-saved{
+    display:none;align-items:center;gap:8px;
+    font-size:12px;color:var(--accent2);font-weight:600;
+  }
+  .key-saved.on{display:flex;}
+
+  /* CARD */
+  .card{background:var(--glass);border:1px solid var(--glass-border);border-radius:28px;backdrop-filter:blur(48px) saturate(200%);-webkit-backdrop-filter:blur(48px) saturate(200%);box-shadow:0 12px 80px var(--glass-shadow),inset 0 1px 0 rgba(255,255,255,.12);padding:40px;animation:fadeUp .8s ease both;animation-delay:.1s;}
+
+  .sec-label{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+  .sec-label::after{content:'';flex:1;height:1px;background:linear-gradient(to right,rgba(41,151,255,.3),transparent);}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  .fg{display:flex;flex-direction:column;gap:7px;}
+  .fg label{font-size:11.5px;font-weight:600;color:var(--muted);letter-spacing:.03em;}
+
+  input[type=number],input[type=text],select{background:var(--input);border:1px solid rgba(255,255,255,0.1);border-radius:13px;color:var(--text);font-family:inherit;font-size:15px;font-weight:500;padding:13px 14px;width:100%;outline:none;appearance:none;-webkit-appearance:none;transition:border-color .2s,background .2s,box-shadow .2s;}
+  input:focus,select:focus{border-color:var(--accent);background:rgba(41,151,255,.09);box-shadow:0 0 0 3px rgba(41,151,255,.15);}
+  select option{background:#12121e;}
+  input::placeholder{color:rgba(255,255,255,.2);}
+
+  /* UNIT TOGGLE */
+  .unit-toggle{display:flex;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;overflow:hidden;margin-bottom:4px;width:fit-content;}
+  .unit-btn{padding:6px 16px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;user-select:none;}
+  .unit-btn.active{background:var(--accent);color:#fff;}
+
+  /* PILLS */
+  .pills{display:flex;flex-wrap:wrap;gap:8px;}
+  .pill{cursor:pointer;padding:9px 17px;border-radius:100px;font-size:13px;font-weight:600;background:var(--input);border:1px solid rgba(255,255,255,.09);color:var(--muted);transition:all .2s;user-select:none;}
+  .pill:hover{border-color:rgba(255,255,255,.25);color:var(--text);}
+  .pill.sel-blue{background:rgba(41,151,255,.16);border-color:var(--accent);color:var(--accent);box-shadow:0 0 14px rgba(41,151,255,.2);}
+  .pill.sel-green{background:rgba(48,209,88,.16);border-color:var(--accent2);color:var(--accent2);box-shadow:0 0 14px rgba(48,209,88,.2);}
+
+  .hr{height:1px;background:rgba(255,255,255,.06);margin:28px 0;}
+
+  /* SLIDER */
+  .slider-wrap{display:flex;flex-direction:column;gap:8px;}
+  .slider-row{display:flex;align-items:center;gap:12px;}
+  input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:4px;outline:none;background:linear-gradient(to right,var(--accent) 0%,var(--accent) var(--val,50%),rgba(255,255,255,.12) var(--val,50%),rgba(255,255,255,.12) 100%);}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer;transition:transform .15s;}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2);}
+  .slider-val{font-family:'DM Mono',monospace;font-size:13px;color:var(--accent);min-width:32px;text-align:right;font-weight:500;}
+  .slider-labels{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);}
+
+  /* DURATION */
+  .duration-row{display:flex;align-items:center;gap:10px;}
+  .duration-btn{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:var(--input);color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;user-select:none;}
+  .duration-btn:hover{background:rgba(41,151,255,.15);border-color:var(--accent);}
+  .duration-display{font-family:'DM Mono',monospace;font-size:22px;font-weight:500;color:#fff;min-width:80px;text-align:center;}
+
+  /* BMI */
+  .bmi-chip{display:none;align-items:center;gap:7px;padding:6px 14px;border-radius:100px;font-size:12px;font-weight:600;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);margin-top:10px;transition:all .3s;}
+  .bmi-chip.on{display:inline-flex;}
+  .bmi-chip span{font-family:'DM Mono',monospace;}
+
+  /* BUTTON */
+  .btn{width:100%;padding:18px;border-radius:16px;border:none;font-family:inherit;font-size:16px;font-weight:700;letter-spacing:.01em;cursor:pointer;position:relative;overflow:hidden;background:linear-gradient(135deg,#2997ff,#0055cc);color:#fff;box-shadow:0 4px 32px rgba(41,151,255,.45);transition:all .22s;margin-top:12px;}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 10px 48px rgba(41,151,255,.6);}
+  .btn:active{transform:translateY(0);}
+  .btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+  .shimmer{position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);transform:translateX(-100%);animation:shim 2.4s infinite;}
+  @keyframes shim{to{transform:translateX(200%);}}
+
+  .load-bar{height:3px;border-radius:3px;margin-top:14px;display:none;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3),var(--accent));background-size:300% 100%;animation:flow 1.4s linear infinite;}
+  .load-bar.on{display:block;}
+  @keyframes flow{0%{background-position:0%}100%{background-position:300%}}
+
+  .err{display:none;margin-top:12px;padding:12px 16px;border-radius:12px;background:rgba(255,100,100,.1);border:1px solid rgba(255,100,100,.22);color:#ff8a8a;font-size:13px;}
+  .err.on{display:block;}
+
+  /* RESULT */
+  .result{margin-top:30px;display:none;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:24px;backdrop-filter:blur(30px);overflow:hidden;animation:fadeUp .5s ease both;}
+  .result.on{display:block;}
+  .result-top{padding:24px 32px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .result-title{font-size:19px;font-weight:800;letter-spacing:-.02em;}
+  .result-tags{display:flex;gap:8px;flex-wrap:wrap;}
+  .tag{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:4px 11px;border-radius:100px;}
+  .tag-blue{background:rgba(41,151,255,.15);border:1px solid rgba(41,151,255,.3);color:var(--accent);}
+  .tag-green{background:rgba(48,209,88,.15);border:1px solid rgba(48,209,88,.3);color:var(--accent2);}
+  .tag-purple{background:rgba(191,90,242,.15);border:1px solid rgba(191,90,242,.3);color:var(--accent3);}
+
+  .result-body{padding:28px 32px;}
+  .result-body h2{font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin:28px 0 12px;padding-bottom:8px;border-bottom:1px solid rgba(41,151,255,.18);}
+  .result-body h2:first-child{margin-top:0;}
+  .result-body h3{font-size:14px;font-weight:700;color:rgba(255,255,255,.92);margin:18px 0 8px;}
+  .result-body p{font-size:14px;line-height:1.8;color:rgba(255,255,255,.75);margin-bottom:10px;}
+  .result-body strong{color:#fff;font-weight:700;}
+  .result-body em{color:var(--accent2);font-style:normal;font-weight:600;}
+  .result-body ul,.result-body ol{padding-left:20px;margin:8px 0 14px;}
+  .result-body li{font-size:14px;line-height:1.75;color:rgba(255,255,255,.75);margin-bottom:6px;}
+
+  /* TABLE */
+  .tbl-wrap{overflow-x:auto;margin:12px 0 18px;border-radius:12px;border:1px solid rgba(255,255,255,.08);}
+  .result-body table{width:100%;border-collapse:collapse;font-size:13px;}
+  .result-body thead th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08);}
+  .result-body tbody td{padding:10px 14px;color:rgba(255,255,255,.8);border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top;}
+  .result-body tbody tr:last-child td{border-bottom:none;}
+  .result-body tbody tr:hover td{background:rgba(255,255,255,.03);}
+  .result-body code{font-family:'DM Mono',monospace;font-size:12px;background:rgba(41,151,255,.12);color:var(--accent);padding:2px 7px;border-radius:5px;}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+  @media(max-width:560px){.grid2,.grid3{grid-template-columns:1fr;}.card{padding:24px 18px;}.result-body{padding:20px 18px;}.key-row{flex-direction:column;}}
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="orb o1"></div><div class="orb o2"></div>
+  <div class="orb o3"></div><div class="orb o4"></div>
+</div>
+
+<div class="wrap">
+
+  <div class="header">
+    <div class="badge"><span class="badge-dot"></span>AI-Powered · Precise Measurements</div>
+    <h1>Train Smarter.<br>Not Harder.</h1>
+    <p class="sub">Science-backed workouts with exact weights, tempo, RPE, and volume — built around your body.</p>
+  </div>
+
+  <!-- API KEY BANNER -->
+  <div class="key-banner">
+    <div class="key-banner-top">
+      <span class="key-icon">🔑</span>
+      <div>
+        <div class="key-title">Anthropic API Key Required</div>
+        <div class="key-sub">Your key is never stored — only used in this browser session.</div>
+      </div>
+    </div>
+    <div class="key-row">
+      <input class="key-input" type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off">
+      <button class="key-save" onclick="saveKey()">Save Key</button>
+      <div class="key-saved" id="keySaved">✓ Key saved</div>
+    </div>
+  </div>
+
+  <!-- MAIN FORM CARD -->
+  <div class="card">
+
+    <div class="sec-label">Body Metrics</div>
+    <div style="margin-bottom:12px">
+      <div class="unit-toggle">
+        <div class="unit-btn active" id="metricBtn" onclick="setUnit('metric')">kg / cm</div>
+        <div class="unit-btn" id="imperialBtn" onclick="setUnit('imperial')">lbs / ft</div>
+      </div>
+    </div>
+    <div class="grid3" style="margin-bottom:10px">
+      <div class="fg">
+        <label id="wLabel">Weight (kg)</label>
+        <input type="number" id="weight" placeholder="e.g. 82" oninput="calcBMI()">
+      </div>
+      <div class="fg">
+        <label id="hLabel">Height (cm)</label>
+        <input type="number" id="height" placeholder="e.g. 178" oninput="calcBMI()">
+      </div>
+      <div class="fg">
+        <label>Age</label>
+        <input type="number" id="age" placeholder="e.g. 24" min="10" max="100">
+      </div>
+    </div>
+    <div id="bmiChip" class="bmi-chip">
+      BMI: <span id="bmiVal">—</span> · <span id="bmiCat"></span>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="sec-label">Biological Sex</div>
+    <div class="pills" id="g-sex" style="margin-bottom:20px">
+      <div class="pill" data-g="sex" data-v="Male">Male</div>
+      <div class="pill" data-g="sex" data-v="Female">Female</div>
+    </div>
+
+    <div class="sec-label">Body Type</div>
+    <div class="pills" id="g-body" style="margin-bottom:20px">
+      <div class="pill" data-g="body" data-v="Ectomorph">Ectomorph</div>
+      <div class="pill" data-g="body" data-v="Mesomorph">Mesomorph</div>
+      <div class="pill" data-g="body" data-v="Endomorph">Endomorph</div>
+    </div>
+
+    <div class="sec-label">Ethnic Background <span style="color:var(--muted);font-size:9.5px;text-transform:none;letter-spacing:0;font-weight:500;margin-left:4px">(biological considerations)</span></div>
+    <div style="margin-bottom:20px">
+      <select id="ethnicity">
+        <option value="" disabled selected>Select background...</option>
+        <option>African / African-American</option>
+        <option>East Asian</option>
+        <option>South Asian</option>
+        <option>Southeast Asian</option>
+        <option>Hispanic / Latino</option>
+        <option>Middle Eastern / North African</option>
+        <option>European / White</option>
+        <option>Mixed / Multiracial</option>
+        <option>Prefer not to say</option>
+      </select>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="sec-label">Primary Goal</div>
+    <div class="pills" id="g-goal" style="margin-bottom:20px">
+      <div class="pill" data-g="goal" data-v="Build Muscle (Hypertrophy)">Build Muscle</div>
+      <div class="pill" data-g="goal" data-v="Lose Fat">Lose Fat</div>
+      <div class="pill" data-g="goal" data-v="Increase Strength (1RM Focus)">Strength</div>
+      <div class="pill" data-g="goal" data-v="Improve Endurance">Endurance</div>
+      <div class="pill" data-g="goal" data-v="General Fitness & Health">General Fitness</div>
+      <div class="pill" data-g="goal" data-v="Athletic Power & Performance">Athletic Performance</div>
+    </div>
+
+    <div class="sec-label">Fitness Level</div>
+    <div class="pills" id="g-level" style="margin-bottom:20px">
+      <div class="pill" data-g="level" data-v="Beginner (0–6 months)">Beginner</div>
+      <div class="pill" data-g="level" data-v="Intermediate (6mo–2 years)">Intermediate</div>
+      <div class="pill" data-g="level" data-v="Advanced (2+ years)">Advanced</div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="sec-label">Available Equipment <span style="color:var(--muted);font-size:9.5px;text-transform:none;letter-spacing:0;font-weight:500;margin-left:4px">(select all that apply)</span></div>
+    <div class="pills" id="g-equip" style="margin-bottom:20px">
+      <div class="pill" data-g="equip" data-v="Bodyweight only">Bodyweight</div>
+      <div class="pill" data-g="equip" data-v="Dumbbells">Dumbbells</div>
+      <div class="pill" data-g="equip" data-v="Barbell & plates">Barbell</div>
+      <div class="pill" data-g="equip" data-v="Pull-up bar">Pull-up Bar</div>
+      <div class="pill" data-g="equip" data-v="Resistance bands">Bands</div>
+      <div class="pill" data-g="equip" data-v="Kettlebells">Kettlebells</div>
+      <div class="pill" data-g="equip" data-v="Cable machines">Cables</div>
+      <div class="pill" data-g="equip" data-v="Full commercial gym">Full Gym</div>
+      <div class="pill" data-g="equip" data-v="Cardio machines">Cardio Machines</div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:20px">
+      <div>
+        <div class="sec-label">Days Per Week</div>
+        <div class="pills" id="g-days">
+          <div class="pill" data-g="days" data-v="2">2</div>
+          <div class="pill" data-g="days" data-v="3">3</div>
+          <div class="pill" data-g="days" data-v="4">4</div>
+          <div class="pill" data-g="days" data-v="5">5</div>
+          <div class="pill" data-g="days" data-v="6">6</div>
+        </div>
+      </div>
+      <div>
+        <div class="sec-label">Session Duration</div>
+        <div class="duration-row">
+          <div class="duration-btn" onclick="adjDur(-5)">−</div>
+          <div class="duration-display" id="durDisp">45 min</div>
+          <div class="duration-btn" onclick="adjDur(5)">+</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-label">Training Intensity (RPE Target)</div>
+    <div class="slider-wrap" style="margin-bottom:20px">
+      <div class="slider-row">
+        <input type="range" id="intensity" min="1" max="10" value="6" oninput="updateSlider(this)" style="--val:55%">
+        <div class="slider-val" id="intensityVal">6</div>
+      </div>
+      <div class="slider-labels"><span>Light (1)</span><span>Moderate (5)</span><span>Max (10)</span></div>
+    </div>
+
+    <div class="sec-label">Injuries / Limitations <span style="color:var(--muted);font-size:9.5px;text-transform:none;letter-spacing:0;font-weight:500;margin-left:4px">(optional)</span></div>
+    <div style="margin-bottom:8px">
+      <input type="text" id="injuries" placeholder="e.g. bad left knee, lower back pain, shoulder impingement...">
+    </div>
+
+    <div class="hr"></div>
+
+    <button class="btn" id="genBtn" onclick="generate()">
+      <span class="shimmer"></span>Generate My Workout Plan
+    </button>
+    <div class="load-bar" id="loadBar"></div>
+    <div class="err" id="errMsg"></div>
+
+  </div>
+
+  <!-- RESULT -->
+  <div class="result" id="resultCard">
+    <div class="result-top">
+      <div class="result-title">Your Personalised Plan</div>
+      <div class="result-tags">
+        <div class="tag tag-blue" id="tagGoal"></div>
+        <div class="tag tag-green" id="tagLevel"></div>
+        <div class="tag tag-purple" id="tagDays"></div>
+      </div>
+    </div>
+    <div class="result-body" id="resultBody"></div>
+  </div>
+
+</div>
+
+<script>
+let unit = 'metric', sessionDur = 45;
+let apiKeySaved = '';
+const sel = { sex:null, body:null, goal:null, level:null, days:null, equip:[] };
+const SINGLE = ['sex','body','goal','level','days'];
+
+function saveKey() {
+  const val = document.getElementById('apiKey').value.trim();
+  if (!val.startsWith('sk-')) return alert('Please enter a valid Anthropic API key starting with sk-');
+  apiKeySaved = val;
+  document.getElementById('keySaved').classList.add('on');
+  document.getElementById('apiKey').value = '•'.repeat(20);
+}
+
+function setUnit(u) {
+  unit = u;
+  document.getElementById('metricBtn').classList.toggle('active', u==='metric');
+  document.getElementById('imperialBtn').classList.toggle('active', u==='imperial');
+  document.getElementById('wLabel').textContent = u==='metric'?'Weight (kg)':'Weight (lbs)';
+  document.getElementById('hLabel').textContent = u==='metric'?'Height (cm)':'Height (ft)';
+  document.getElementById('weight').placeholder = u==='metric'?'e.g. 82':'e.g. 180';
+  document.getElementById('height').placeholder = u==='metric'?'e.g. 178':'e.g. 5.9';
+  calcBMI();
+}
+
+function calcBMI() {
+  let w = parseFloat(document.getElementById('weight').value);
+  let h = parseFloat(document.getElementById('height').value);
+  if (!w || !h) { document.getElementById('bmiChip').classList.remove('on'); return; }
+  if (unit === 'imperial') { w = w * 0.453592; h = h * 30.48; }
+  const bmi = (w / ((h/100)**2)).toFixed(1);
+  const cat = bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal weight' : bmi < 30 ? 'Overweight' : 'Obese';
+  const chip = document.getElementById('bmiChip');
+  chip.classList.add('on');
+  document.getElementById('bmiVal').textContent = bmi;
+  document.getElementById('bmiCat').textContent = cat;
+  chip.style.borderColor = bmi < 18.5||bmi>=30 ? 'rgba(255,100,100,.4)' : bmi < 25 ? 'rgba(48,209,88,.4)' : 'rgba(255,159,10,.4)';
+}
+
+function adjDur(d) {
+  sessionDur = Math.min(180, Math.max(15, sessionDur + d));
+  document.getElementById('durDisp').textContent = sessionDur + ' min';
+}
+
+function updateSlider(el) {
+  const pct = ((el.value-el.min)/(el.max-el.min)*100).toFixed(0)+'%';
+  el.style.setProperty('--val', pct);
+  document.getElementById('intensityVal').textContent = el.value;
+}
+
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', () => {
+    const g = p.dataset.g, v = p.dataset.v;
+    if (SINGLE.includes(g)) {
+      document.querySelectorAll(`.pill[data-g="${g}"]`).forEach(x => x.classList.remove('sel-blue','sel-green'));
+      p.classList.add('sel-blue');
+      sel[g] = v;
+    } else {
+      if (p.classList.contains('sel-green')) {
+        p.classList.remove('sel-green');
+        sel.equip = sel.equip.filter(e => e !== v);
+      } else {
+        p.classList.add('sel-green');
+        sel.equip.push(v);
+      }
+    }
+  });
+});
+
+function getMetric() {
+  let w = parseFloat(document.getElementById('weight').value)||0;
+  let h = parseFloat(document.getElementById('height').value)||0;
+  if (unit==='imperial'){w=+(w*0.453592).toFixed(1);h=+(h*30.48).toFixed(1);}
+  return {w,h};
+}
+
+function showErr(msg) {
+  const e = document.getElementById('errMsg');
+  e.textContent = msg; e.classList.add('on');
+}
+
+async function generate() {
+  document.getElementById('errMsg').classList.remove('on');
+  if (!apiKeySaved) return showErr('Please enter and save your Anthropic API key above first.');
+
+  const age = document.getElementById('age').value;
+  const {w,h} = getMetric();
+  const ethnicity = document.getElementById('ethnicity').value;
+  const injuries = document.getElementById('injuries').value;
+  const intensity = document.getElementById('intensity').value;
+
+  if (!w||!h||!age) return showErr('Please enter weight, height, and age.');
+  if (!sel.sex) return showErr('Please select biological sex.');
+  if (!sel.body) return showErr('Please select body type.');
+  if (!sel.goal) return showErr('Please select a goal.');
+  if (!sel.level) return showErr('Please select fitness level.');
+  if (!sel.equip.length) return showErr('Please select at least one equipment option.');
+  if (!sel.days) return showErr('Please select days per week.');
+
+  const bmi = (w/((h/100)**2)).toFixed(1);
+  const lbm = (w * 0.76).toFixed(1);
+
+  const prompt = `You are Dr. Alex Reid, an elite exercise physiologist and CSCS-certified strength coach. Create a precise, measurement-driven weekly workout plan.
+
+ATHLETE PROFILE:
+- Age: ${age} | Weight: ${w}kg | Height: ${h}cm | BMI: ${bmi}
+- Estimated Lean Body Mass: ~${lbm}kg
+- Biological Sex: ${sel.sex}
+- Body Type: ${sel.body}
+- Ethnic Background: ${ethnicity || 'Not specified'}
+- Fitness Level: ${sel.level}
+- Goal: ${sel.goal}
+- Equipment: ${sel.equip.join(', ')}
+- Training Days/Week: ${sel.days}
+- Session Duration: ${sessionDur} minutes
+- RPE Target: ${intensity}/10
+${injuries ? `- Injuries/Limitations: ${injuries}` : ''}
+
+MANDATORY — Every exercise MUST include:
+1. Starting weight as % of bodyweight (e.g. "~${Math.round(w*0.4)}kg = 40% BW") OR estimated 1RM%
+2. Exact sets × rep range (e.g. 4×6-8)
+3. Tempo: Eccentric-Pause-Concentric-Top (e.g. 3-1-2-0)
+4. Rest in seconds (e.g. 90s)
+5. RPE target (e.g. RPE 7-8)
+
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+## PHYSIOLOGICAL ANALYSIS
+2-3 sentences on this athlete's specific biology (somatotype, muscle fibre tendencies, metabolic implications from ethnicity/sex combo, injury-prone areas).
+
+## WEEKLY SPLIT
+| Day | Focus | Muscles | Est. Duration |
+(table)
+
+## WORKOUT PLAN
+For each training day use this table:
+| Exercise | Sets×Reps | Tempo | Weight | Rest | RPE | Notes |
+Include 6-9 exercises per session. After each day's table, add 2 progression notes.
+
+## WARM-UP (8 min)
+| Exercise | Duration/Reps | Purpose |
+
+## COOL-DOWN & MOBILITY (5 min)
+List with timing.
+
+## 4-WEEK PROGRESSION
+| Week | Change | Rationale |
+
+## NUTRITION TARGETS
+Specific numbers:
+- Daily protein: Xg (Yg/kg BW)
+- Total calories: X kcal/day
+- Pre-workout meal: timing + macros
+- Post-workout: timing + macros
+
+## RECOVERY PROTOCOL
+3 specific recovery recommendations with measurable targets.
+
+Use tables wherever possible. Be extremely specific with all measurements.`;
+
+  const btn = document.getElementById('genBtn');
+  const bar = document.getElementById('loadBar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="shimmer"></span>Analysing your profile...';
+  bar.classList.add('on');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKeySaved,
+        'anthropic-version':'2023-06-01'
+      },
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:4000,
+        messages:[{role:'user',content:prompt}]
+      })
+    });
+
+    if (res.status === 401) throw new Error('Invalid API key. Please check and re-enter it.');
+    if (res.status === 529) throw new Error('Anthropic API is overloaded. Please try again in a moment.');
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = data.content?.map(b=>b.text||'').join('')||'';
+    if (!text) throw new Error('Empty response received.');
+    renderResult(text);
+  } catch(e) {
+    showErr('Error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="shimmer"></span>Generate My Workout Plan';
+    bar.classList.remove('on');
+  }
+}
+
+function renderResult(raw) {
+  document.getElementById('tagGoal').textContent = sel.goal.split('(')[0].trim();
+  document.getElementById('tagLevel').textContent = sel.level.split('(')[0].trim();
+  document.getElementById('tagDays').textContent = sel.days + ' days/wk';
+
+  // Parse markdown to HTML
+  const lines = raw.split('\n');
+  let html = '';
+  let inTable = false, headers = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // H2
+    if (line.startsWith('## ')) {
+      if (inTable) { html += '</tbody></table></div>'; inTable = false; headers = []; }
+      html += `<h2>${line.slice(3)}</h2>`;
+      continue;
+    }
+    // H3
+    if (line.startsWith('### ')) {
+      if (inTable) { html += '</tbody></table></div>'; inTable = false; headers = []; }
+      html += `<h3>${line.slice(4)}</h3>`;
+      continue;
+    }
+
+    // Table row
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      const cells = line.trim().slice(1,-1).split('|').map(c=>c.trim());
+      // separator row
+      if (cells.every(c => /^[-: ]+$/.test(c))) continue;
+
+      if (!inTable) {
+        // first row = headers
+        html += '<div class="tbl-wrap"><table><thead><tr>';
+        cells.forEach(c => { html += `<th>${fmt(c)}</th>`; });
+        html += '</tr></thead><tbody>';
+        headers = cells;
+        inTable = true;
+      } else {
+        html += '<tr>';
+        cells.forEach(c => { html += `<td>${fmt(c)}</td>`; });
+        html += '</tr>';
+      }
+      continue;
+    }
+
+    // Close table
+    if (inTable) { html += '</tbody></table></div>'; inTable = false; headers = []; }
+
+    // List
+    if (line.trim().startsWith('- ')) { html += `<ul><li>${fmt(line.trim().slice(2))}</li></ul>`; continue; }
+    if (/^\d+\./.test(line.trim())) { html += `<ol><li>${fmt(line.trim().replace(/^\d+\.\s*/,''))}</li></ol>`; continue; }
+
+    // Blank
+    if (!line.trim()) continue;
+
+    html += `<p>${fmt(line)}</p>`;
+  }
+
+  if (inTable) html += '</tbody></table></div>';
+
+  // Merge consecutive ul/ol
+  html = html.replace(/<\/ul>\s*<ul>/g,'').replace(/<\/ol>\s*<ol>/g,'');
+
+  document.getElementById('resultBody').innerHTML = html;
+  const card = document.getElementById('resultCard');
+  card.classList.add('on');
+  card.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function fmt(str) {
+  return str
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>');
+}
+</script>
+</body>
+</html>
